@@ -1,0 +1,7 @@
+name: test_deployment
+jobs:
+  - yamlFile: deploy.yaml
+    maxWaitTime: 2min
+    verificate:
+      - jsonPath: ".status.phaps"
+        value: "Runnings"
