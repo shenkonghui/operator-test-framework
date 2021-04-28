@@ -21,9 +21,12 @@ import (
 	"log"
 	"operator-test-framework/pkg/api"
 	job "operator-test-framework/pkg/api"
+	"operator-test-framework/pkg/util"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/prometheus/tsdb/fileutil"
 
 	"k8s.io/apimachinery/pkg/util/json"
 
@@ -39,20 +42,40 @@ var configPath string
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "run test job",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		klog.V(2).Info("start to test operator")
 		jobs := &job.TestJobs{}
 
-		files, _ := ioutil.ReadDir(configPath)
+		// 判断文件存在
+		exist, err := util.PathExists(configPath)
+		if !exist {
+			return fmt.Errorf("path is not exist: %s", configPath)
+		}
+
+		// 支持目录和文件
+		isDir := util.IsDir(configPath)
+		files := []string{}
+		if isDir {
+			files, err = fileutil.ReadDir(configPath)
+		} else {
+			files = append(files, configPath)
+		}
+
 		ouput := api.OutPut{}
+		// 遍历所有文件
 		for _, cfgFile := range files {
-			if cfgFile.IsDir() {
+			file := cfgFile
+			if isDir {
+				file = configPath + "/" + cfgFile
+			}
+			// 判断下级是否是目录
+			if util.IsDir(file) {
 				continue
 			} else {
-				yamlFile, _ := ioutil.ReadFile(configPath + "/" + cfgFile.Name())
+				yamlFile, _ := ioutil.ReadFile(file)
 				err := yaml.Unmarshal(yamlFile, jobs)
 				if err != nil {
-					return
+					return err
 				}
 				if len(jobs.Parameter) > 0 {
 					yamlFileStr := string(yamlFile)
@@ -64,7 +87,7 @@ var runCmd = &cobra.Command{
 					}
 					err := yaml.Unmarshal([]byte(yamlFileStr), jobs)
 					if err != nil {
-						return
+						return err
 					}
 
 				}
@@ -84,10 +107,10 @@ var runCmd = &cobra.Command{
 		}
 		result, err := json.Marshal(ouput)
 		if err != nil {
-			return
+			return err
 		}
 		fmt.Println(string(result))
-
+		return nil
 	},
 }
 
