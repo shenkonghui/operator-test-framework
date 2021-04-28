@@ -1,7 +1,52 @@
-name: test_deployment
+name: "redis-test"
+parameter:
+- key: name
+  value: redis-cl
 jobs:
-  - yamlFile: deploy.yaml
-    maxWaitTime: 2min
+  # 初始化状态检查
+  - name: "Init"
+    timeout: 10s
+    interval: 5s
     verificate:
-      - jsonPath: ".status.phaps"
-        value: "Runnings"
+      - cmd: "kubectl get rediscluster #name -o=jsonpath='{.status.phase}'"
+        value: "Running"
+        name: "phaseRunning"
+  # master删除测试
+  - name: "DeleteMaster"
+    cmd: "masterLists=$(kubectl  get rediscluster  #name  -o jsonpath=\"{.status.conditions[?(@.type=='master')].name}\");for element in ${masterLists[@]}; do kubectl delete pod $element ;done;"
+    timeout: 1m
+    initTime: 1s
+    interval: 5s
+    variable:
+      - key: resourceVersion
+        valueFromCmd: "kubectl get rediscluster #name -o=jsonpath='{.metadata.resourceVersion}'"
+    verificate:
+      - cmd: "kubectl get rediscluster #name -o=jsonpath='{.metadata.resourceVersion}'"
+        operator: "noEqual"
+        name: "versionChange"
+        value: "@resourceVersion"
+      - cmd: "kubectl get rediscluster #name -o=jsonpath='{.status.phase}'"
+        value: "Running"
+        name: "phaseRunning"
+  # 全部pod重启测试
+  - name: "DeleteAllPod"
+    cmd: "kubectl delete pod -l app=#name"
+    timeout: 1m
+    initTime: 1s
+    interval: 5s
+    parameter:
+    - key: resourceVersion
+      valueFromCmd: "kubectl get rediscluster #name -o=jsonpath='{.metadata.resourceVersion}'"
+    verificate:
+      # 保证cr status变化了
+      - cmd: "kubectl get rediscluster #name -o=jsonpath='{.metadata.resourceVersion}'"
+        operator: "noEqual"
+        name: "versionChange"
+        value: "@resourceVersion"
+      - cmd: "kubectl get rediscluster #name -o=jsonpath='{.status.phase}'"
+        value: "Running"
+        name: "phaseRunning"
+
+
+
+
