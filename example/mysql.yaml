@@ -1,17 +1,17 @@
-name: "redis-test"
+name: "mysql-test"
 parameter:
 - key: GetPhase
   value: "kubectl get #{kind} #{name} -o=jsonpath='{.status.phase}'"
 - key: GetRevision
   value: "kubectl get #{kind} #{name} -o=jsonpath='{.metadata.resourceVersion}'"
 - key: DeleteAllSlave
-  value: "slaveLists=$(kubectl  get #{kind}  #{name}  -o jsonpath=\"{.status.conditions[?(@.type=='slave')].name}\");for element in ${slaveLists[@]}; do kubectl delete pod $element ;done;"
+  value: "slaveLists=$(kubectl  get mysqlcluster  #{name}  -o jsonpath=\"{.status.conditions[?(@.type=='Slave')].name}\");for element in ${slaveLists[@]}; do kubectl delete pod $element ;done;"
 - key: DeleteOneMaster
-  value: "masterLists=$(kubectl  get #{kind}  #{name}  -o jsonpath=\"{.status.conditions[?(@.type=='master')].name}\")&& masterLists=($masterLists) && kubectl delete pod  ${masterLists[0]}"
-- key: name
-  value: redis
+  value: "masterLists=$(kubectl  get mysqlcluster  #{name}  -o jsonpath=\"{.status.conditions[?(@.type=='Master')].name}\")&& masterLists=($masterLists) && kubectl delete pod  ${masterLists[0]}"
 - key: kind
-  value: rediscluster
+  value: mysqlcluster
+- key: name
+  value: mysql
 jobs:
   # 初始化状态检查
   - name: "Init"
@@ -20,10 +20,11 @@ jobs:
     verificate:
       - cmd: #{GetPhase}
         value: "Running"
+        name: "phaseRunning"
   # 删除所有slave测试
   - name: "DeleteAllSlave"
     cmd: #{DeleteAllSlave}
-    timeout: 1m
+    timeout: 2m
     initTime: 5s
     interval: 5s
     variable:
@@ -32,13 +33,15 @@ jobs:
     verificate:
       - cmd: #{GetRevision}
         operator: "noEqual"
+        name: "versionChange"
         value: "@resourceVersion"
       - cmd: #{GetPhase}
         value: "Running"
+        name: "phaseRunning"
   # 删除一个master测试
   - name: "DeleteOneMaster"
     cmd: #{DeleteOneMaster}
-    timeout: 1m
+    timeout: 2m
     initTime: 5s
     interval: 5s
     variable:
@@ -47,9 +50,11 @@ jobs:
     verificate:
       - cmd: #{GetRevision}
         operator: "noEqual"
+        name: "versionChange"
         value: "@resourceVersion"
       - cmd: #{GetPhase}
         value: "Running"
+        name: "phaseRunning"
 
 
 

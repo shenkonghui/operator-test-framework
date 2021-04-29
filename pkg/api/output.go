@@ -1,7 +1,7 @@
 package api
 
 type OutPut struct {
-	name           string           `json:"name"`
+	Name           string           `json:"name"`
 	TestRunResults []TestRunResults `json:"test_run_results"`
 }
 

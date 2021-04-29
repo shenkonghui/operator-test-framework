@@ -1,10 +1,14 @@
 package util
 
 import (
+	"fmt"
 	"log"
 	"operator-test-framework/pkg/api"
 	"os"
+	"os/exec"
 	"strings"
+
+	"k8s.io/klog/v2"
 )
 
 // 判断文件夹是否存在
@@ -54,4 +58,18 @@ func ConvertStrToPara(input string, para []api.Parameter) []api.Parameter {
 		}
 	}
 	return para
+}
+
+func ExecCmd(str string) (string, error) {
+	klog.V(3).Infof("exec: %s", str)
+	cmd := exec.Command("/bin/bash", "-c", str)
+	cmdResult, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("cmd[%s] err: %s", str, string(ee.Stderr))
+		}
+		return "", fmt.Errorf("cmd[%s] err: %s", str, err)
+	}
+
+	return string(cmdResult), nil
 }
