@@ -22,6 +22,7 @@ import (
 	"operator-test-framework/pkg/api"
 	job "operator-test-framework/pkg/api"
 	"operator-test-framework/pkg/util"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ import (
 )
 
 var configPath string
+var parameter string
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
@@ -44,7 +46,7 @@ var runCmd = &cobra.Command{
 	Short: "run test job",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		klog.V(2).Info("start to test operator")
-		jobs := &job.TestJobs{}
+		jobs := &job.TestJobs{Name: os.Getenv("POD_NAME")}
 
 		// 判断文件存在
 		exist, err := util.PathExists(configPath)
@@ -77,11 +79,12 @@ var runCmd = &cobra.Command{
 				if err != nil {
 					return err
 				}
+				jobs.Parameter = util.ConvertStrToPara(parameter, jobs.Parameter)
 				if len(jobs.Parameter) > 0 {
 					yamlFileStr := string(yamlFile)
 					for _, para := range jobs.Parameter {
 						if para.Name != "" {
-							name := fmt.Sprintf("#%s", para.Name)
+							name := fmt.Sprintf("#{%s}", para.Name)
 							yamlFileStr = strings.ReplaceAll(yamlFileStr, name, para.Value)
 						}
 					}
@@ -116,7 +119,8 @@ var runCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	rootCmd.PersistentFlags().StringVar(&configPath, "configPath", "", "config file dir(default is .)")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "configPath", "f", "", "配置文件路径，可以指定目录")
+	rootCmd.PersistentFlags().StringVarP(&parameter, "parameter", "p", "", "指定变量，将替换配置文件中的配置, 比如name1=abc,name2=bcd")
 
 }
 
@@ -127,8 +131,6 @@ func runJob(jobs *job.TestJobs) (error, bool, api.TestRunResults) {
 		testRun.CaseResults = append(testRun.CaseResults, api.CaseResult{CaseName: job.Name})
 		testRun.CaseResults[i].CaseName = job.Name
 
-		startTime := time.Now()
-		endTime := startTime.Add(job.Timeout)
 		shell := job.Cmd
 
 		Parameter := make(map[string]string)
@@ -164,6 +166,8 @@ func runJob(jobs *job.TestJobs) (error, bool, api.TestRunResults) {
 		if job.InitTime != 0 {
 			time.Sleep(job.InitTime)
 		}
+		startTime := time.Now()
+		endTime := startTime.Add(job.Timeout)
 
 		klog.V(2).Infof("start to verificate job: %v", job.Name)
 		// 开始执行验证
