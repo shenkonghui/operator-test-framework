@@ -16,10 +16,12 @@ type Job struct {
 	yamlFile string `yaml:"yamlFile"`
 	// 执行测试后等待的时候，可能operator还没有开始工作
 	InitTime   time.Duration `yaml:"initTime"`
-	Timeout    time.Duration `yaml:"timeout"`
+	Interval   time.Duration `yaml:"interval"`
+	Timeout    time.Duration `default:"30s" yaml:"timeout"`
 	Variable   []Variable    `yaml:"variable"`
 	Verificate []Verificate  `yaml:"verificate"`
 }
+
 type Verificate struct {
 	Name     string `yaml:"name"`
 	JsonPath string `yaml:"jsonPath"`
