@@ -1,0 +1,10 @@
+name: "pod-test"
+jobs:
+  # 初始化状态检查
+  - name: "Init"
+    timeout: 10s
+    interval: 5s
+    verificate:
+      - cmd: "kubectl get pod #{name} -o=jsonpath='{.status.phase}'"
+        value: "Running"
+        name: "Running"
